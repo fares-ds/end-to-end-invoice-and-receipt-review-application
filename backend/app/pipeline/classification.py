@@ -73,6 +73,9 @@ def build_local_agent[T](
         model=model,
         output_type=NativeOutput(output_type),
         instructions=instructions,
+        # Pinned so the same document yields the same classification and GL
+        # suggestion across runs, matching the extraction call.
+        model_settings={"temperature": 0.0},
     )
 
 
