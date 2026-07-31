@@ -1,0 +1,10 @@
+{
+  "field_accuracy": 100.0,
+  "matched_fields": 169,
+  "total_fields": 169,
+  "exact_documents": 13,
+  "policy_matches": 13,
+  "provider_failures": 0,
+  "documents": 13,
+  "model": "gemma4:cloud"
+}
