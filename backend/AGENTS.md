@@ -82,4 +82,6 @@ uv run --locked --no-sync ruff check app scripts
 
 Provider checks and corpus evaluations run entirely against local OCR and a local model, so they cost nothing and can be re-run freely. They do need Ollama running with the configured model pulled, plus `poppler-utils` and `tesseract-ocr` on PATH. Complete verification also includes startup readiness and the manual end-to-end workflow.
 
+Deterministic behaviour is locked by `scripts/check_deterministic.py`, which uses no model and no network. Extend it when adding a pure function that affects what a reviewer sees or what blocks approval.
+
 Do not add `tests/`, `pytest`, or committed automated test files. This weekly teaching project uses linting, explicit provider/corpus checks, and manual workflow verification as defined by the root instructions.

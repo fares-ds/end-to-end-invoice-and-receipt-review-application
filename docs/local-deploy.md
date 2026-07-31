@@ -77,20 +77,12 @@ Set the choice in `backend/.env`:
 OLLAMA_MODEL=qwen3.5:4b
 ```
 
-## Optional: independent vision review
+## How the independent review stays independent
 
-By default the independent review reads the same OCR text as the primary extraction, so the
-two results are not fully independent. Pointing the reviewer at a vision-capable model
-restores an independent read of the page image:
-
-```bash
-ollama pull qwen2.5vl:3b
-# backend/.env
-OLLAMA_VISION_MODEL=qwen2.5vl:3b
-```
-
-Leave it unset on machines without spare memory. The application works either way and states
-which mode produced a review.
+The review is a second reading of the document, not a re-reading of the primary
+extraction's text. A PDF is rasterized and OCRed for the review while the primary
+extraction reads the embedded text layer, so the two can genuinely disagree. An image
+has only one route, so its review shares a source and the result says so.
 
 ## Optional shared-password gate
 

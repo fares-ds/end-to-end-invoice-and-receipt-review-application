@@ -16,7 +16,7 @@ Read `docs/client-brief.md`, `docs/architecture.md`, and `docs/build-along.md` b
 
 - OCR binaries are invoked only from `backend/app/services/ocr_text_service.py`.
 - OpenAI SDK types stop in the provider adapters under `backend/app/providers/`, including document review, GL suggestion, and correction-email drafting.
-- The document reviewer returns classification plus provider-independent structured fields. Local OCR extraction remains primary; deterministic merging only fills its missing fields and exposes provenance. By default the reviewer reads the same OCR text as the primary extraction, so the two are not fully independent; setting `OLLAMA_VISION_MODEL` restores an independent image-based review.
+- The document reviewer returns classification plus provider-independent structured fields. Local OCR extraction remains primary; deterministic merging only fills its missing fields and exposes provenance. The reviewer reads the document by a different route than the primary extraction: a PDF is rasterized and OCRed while the primary extraction reads the embedded text layer. An image has only one route, and the review states when it shares a source.
 - The GL categorizer receives normalized invoice fields only.
 - The GL catalog and selection validation live in `backend/app/accounting/`; model output never becomes business policy.
 - Business rules live in `backend/app/documents/validation.py` and must be pure.
@@ -46,7 +46,9 @@ Update `docs/build-along.md` in the same commit as every working slice. Include 
 
 - Do not add automated test suites, `tests/` directories, or `*.test.*` files to this end-to-end teaching project.
 - Keep verification proportional and demo-oriented: verify locked installs on the starter; as code is added, lint the backend, type-check/lint/build the frontend, exercise the fictional corpus evaluators, and manually walk through the user story in the browser.
-- Keep deterministic business rules and provider boundaries explicit and easy to inspect even though they are not backed by a committed unit-test suite.
+- Keep deterministic business rules and provider boundaries explicit and easy to inspect.
+- `backend/scripts/check_deterministic.py` locks the behaviour of the pure functions that decide what a reviewer sees and what blocks approval. It needs no model or network, runs in about a second, and exits non-zero on drift. Run it before and after touching OCR parsing, VAT repair, confidence scoring, or the Northstar rules. It is a check script, not a test suite: no `tests/` directory, no pytest, no `*.test.*`.
+- `backend/scripts/evaluate_corpus.py` can gate (`--min-accuracy`) and detect regression (`--baseline`). A baseline records the model that produced it, because local and cloud accuracy are not comparable.
 - Local OCR depends on `poppler-utils` and `tesseract-ocr` with the `eng`, `nld`, `deu`, and `fra` language packs. These are system binaries, not Python dependencies.
 
 ## Secrets and data

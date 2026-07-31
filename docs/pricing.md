@@ -26,7 +26,6 @@ available memory, and an oversized model is killed mid-request, so plan for head
 | `gemma3:1b` | ~1.0 GB | Default. Works on a machine with ~2 GB free. |
 | `qwen3.5:2b` | ~3.0 GB | ~4 GB free. |
 | `qwen3.5:4b` | ~5.4 GB | ~6 GB free. Best small-model accuracy. |
-| `qwen2.5vl:3b` | ~3.2 GB | Optional independent vision review. |
 
 Per-document wall-clock time depends on the model and whether OCR is needed:
 

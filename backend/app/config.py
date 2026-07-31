@@ -42,10 +42,6 @@ class Settings(BaseSettings):
     ollama_base_url: str = DEFAULT_OLLAMA_BASE_URL
     ollama_api_key: str = Field(default="ollama", min_length=1)
     ollama_model: str = DEFAULT_MODEL
-    # Optional. When set, the document reviewer sends the original PDF/image to this
-    # model instead of OCR text. Requires a vision-capable model and enough memory.
-    ollama_vision_model: str | None = None
-
     # How structured output is requested. Ollama constrains locally-served models
     # with a grammar, so they honour a json_schema response format. Cloud-served
     # models are proxied without that constraint and must be prompted for JSON
@@ -68,7 +64,6 @@ class Settings(BaseSettings):
         # validator is unsupported and makes pydantic warn.
         self.app_access_password = (self.app_access_password or "").strip() or None
         self.app_session_secret = (self.app_session_secret or "").strip() or None
-        self.ollama_vision_model = (self.ollama_vision_model or "").strip() or None
         if self.app_access_password and not self.app_session_secret:
             raise ValueError(
                 "APP_SESSION_SECRET is required when APP_ACCESS_PASSWORD is set"
@@ -78,10 +73,6 @@ class Settings(BaseSettings):
     @property
     def auth_enabled(self) -> bool:
         return self.app_access_password is not None
-
-    @property
-    def vision_enabled(self) -> bool:
-        return self.ollama_vision_model is not None
 
     def prompted_output(self, model_name: str | None = None) -> bool:
         """Whether this model needs JSON requested in the prompt rather than enforced."""

@@ -1,0 +1,10 @@
+{
+  "field_accuracy": 93.49,
+  "matched_fields": 158,
+  "total_fields": 169,
+  "exact_documents": 3,
+  "policy_matches": 4,
+  "provider_failures": 0,
+  "documents": 13,
+  "model": "gemma3:1b"
+}

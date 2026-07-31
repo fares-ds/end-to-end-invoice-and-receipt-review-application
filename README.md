@@ -68,16 +68,21 @@ Or run the whole thing, model included, in containers:
 docker compose up --build
 ```
 
-See [docs/local-deploy.md](docs/local-deploy.md) for model selection, memory requirements,
-and the optional vision-review mode.
+See [docs/local-deploy.md](docs/local-deploy.md) for model selection and memory requirements.
 
 ## Verify
 
 ```bash
 cd backend
 uv run --locked --no-sync ruff check app scripts
-uv run --locked --no-sync python scripts/check_local_extraction.py
-uv run --locked --no-sync python scripts/evaluate_corpus.py
+
+# Deterministic behaviour: no model or network needed, about a second
+uv run --locked --no-sync python scripts/check_deterministic.py
+
+# Corpus accuracy, with optional gating and regression detection
+uv run --locked --no-sync python scripts/evaluate_corpus.py --merged
+uv run --locked --no-sync python scripts/evaluate_corpus.py --min-accuracy 90
+uv run --locked --no-sync python scripts/evaluate_corpus.py --baseline baselines/gemma3-1b.json
 
 cd ../frontend
 pnpm exec tsc -b --pretty false
@@ -90,15 +95,27 @@ as you like.
 
 ## Accuracy note
 
-A general-purpose local model structuring OCR text is less accurate than a purpose-trained
-hosted invoice model. Confidence shown in the interface is derived, not model-reported: a
-value found verbatim in the recovered text keeps the OCR confidence, and a value the model
-reformatted or inferred is reduced. Run the corpus evaluator to measure the current setup
-rather than assuming a figure.
+Accuracy depends heavily on the model. Measured on the 13-document corpus:
 
-By default the independent review reads the same OCR text as the primary extraction, so the
-two are not fully independent; the review states when this is the case. Setting
-`OLLAMA_VISION_MODEL` restores an independent read of the page image.
+| Model | Field accuracy | Exact documents | Policy matches |
+| --- | ---: | ---: | ---: |
+| `gemma3:1b` (default, local) | 93.5% | 3/13 | 4/13 |
+| `gemma4:cloud` | 100% | 13/13 | 13/13 |
+
+`gemma3:1b` is the default because it loads on a machine with very little free memory. It
+misclassifies receipts as invoices and misreads some two-column layouts. If accuracy
+matters more than staying offline, point `OLLAMA_MODEL` at a larger model and re-run the
+evaluator to measure it yourself.
+
+Confidence shown in the interface is derived, not model-reported: a value found in the
+recovered text keeps the OCR confidence, and a value the model inferred is reduced.
+Required normalization, such as ISO dates and repaired VAT identifiers, is not treated as
+inference.
+
+The independent review reads the document by a different route than the primary
+extraction: a PDF is rasterized and OCRed while the primary extraction reads the embedded
+text layer, so agreement between them carries real information. An image has only one
+route, and the review says so when it shares a source.
 
 ## Documentation
 

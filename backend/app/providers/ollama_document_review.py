@@ -1,23 +1,19 @@
 """Independent second-opinion review of a financial document, run locally.
 
-The hosted implementation sent the original PDF or image to a vision model. A
-local vision model needs memory this project does not assume, so the default
-path reviews the OCR text instead. Setting ``OLLAMA_VISION_MODEL`` restores the
-original behaviour by rasterizing the first page and sending it as an image.
+The hosted implementation sent the original file to a vision model. Independence
+here comes from reading the document by a different route instead: a PDF is
+rasterized and OCRed rather than read through the text layer the primary
+extraction used, so the two readings can genuinely disagree.
 
-Because the default path reads the same OCR text the primary extraction reads,
-the two results are not fully independent. That limitation is surfaced in the
-returned summary rather than hidden, so a reviewer can weigh the agreement
-between the two accordingly.
+An image offers only one route, so its review shares a source with the primary
+extraction. The returned summary states which of the two situations applies
+rather than leaving the reviewer to assume independence.
 """
 
 from __future__ import annotations
 
-import base64
 import json
 import logging
-import subprocess
-import tempfile
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -73,13 +69,8 @@ class OllamaDocumentReviewer(DocumentReviewer):
                 "Local extraction and deterministic checks still completed."
             )
 
-        if self._settings.vision_enabled:
-            message = self._vision_message(path, content_type)
-            model = self._settings.ollama_vision_model or self._settings.ollama_model
-            shared_source = False
-        else:
-            message, shared_source = self._text_message(path, content_type)
-            model = self._settings.ollama_model
+        message, shared_source = self._text_message(path, content_type)
+        model = self._settings.ollama_model
 
         request = build_request(
             model=model,
@@ -134,58 +125,3 @@ class OllamaDocumentReviewer(DocumentReviewer):
             ),
         }
         return message, shared_source
-
-    def _vision_message(self, path: Path, content_type: str) -> dict:
-        if content_type == "application/pdf":
-            image_bytes = _rasterize_first_page(path, self._settings)
-            media_type = "image/png"
-        else:
-            image_bytes = path.read_bytes()
-            media_type = content_type
-
-        encoded = base64.b64encode(image_bytes).decode("ascii")
-        return {
-            "role": "user",
-            "content": [
-                {
-                    "type": "text",
-                    "text": "Classify, independently extract, and review this document.",
-                },
-                {
-                    "type": "image_url",
-                    "image_url": {"url": f"data:{media_type};base64,{encoded}"},
-                },
-            ],
-        }
-
-
-def _rasterize_first_page(path: Path, settings: Settings) -> bytes:
-    with tempfile.TemporaryDirectory() as workspace:
-        prefix = Path(workspace) / "page"
-        try:
-            subprocess.run(
-                [
-                    settings.pdftoppm_binary,
-                    "-r",
-                    "150",
-                    "-png",
-                    "-f",
-                    "1",
-                    "-l",
-                    "1",
-                    str(path),
-                    str(prefix),
-                ],
-                capture_output=True,
-                check=True,
-                timeout=120,
-            )
-        except (OSError, subprocess.SubprocessError) as error:
-            raise DocumentReviewError(
-                "The PDF could not be rasterized for the vision review."
-            ) from error
-
-        pages = sorted(Path(workspace).glob("page*.png"))
-        if not pages:
-            raise DocumentReviewError("The PDF produced no page image to review.")
-        return pages[0].read_bytes()

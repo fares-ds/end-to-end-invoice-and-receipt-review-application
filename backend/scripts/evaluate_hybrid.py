@@ -42,7 +42,7 @@ def build_result(
         "filename": filename,
         "document_type": merged.document_type,
         "expense_category": merged.expense_category,
-        "document_intelligence_model": (
+        "extraction_model": (
             "local-receipt" if merged.document_type == "receipt" else "local-invoice"
         ),
         "primary_fields": primary_fields,
@@ -51,7 +51,7 @@ def build_result(
         "final_status": status_for_issues(issues),
         "issue_codes": [issue.code for issue in issues],
         "model_calls": {
-            "document_intelligence": 1,
+            "local_extraction": 1,
             "source_document_llm": 1,
         },
     }
