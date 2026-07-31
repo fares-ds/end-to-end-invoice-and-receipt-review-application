@@ -264,6 +264,63 @@ cd backend && cp .env.example .env
 
 ---
 
+## Slice 10 — Ask what it is wrong *about*, not just how often
+
+**Outcome.** `scripts/error_analysis.py` compares every field against the manifest and
+classifies each disagreement. Results in [evaluation.md](evaluation.md).
+
+**Why.** The corpus evaluator reports that `gemma3:1b` scores 93.5%. That number gave no
+guidance about where to spend effort, because it does not say which fields fail or how.
+
+Each failure class implies a different fix, which is the reason for separating them:
+
+| Class | Meaning |
+| --- | --- |
+| `missing` | Expected a value, extracted nothing. A recall problem. |
+| `spurious` | Expected nothing, invented something. |
+| `truncated` | Extracted a fragment of the right value. Recognition, not reasoning. |
+| `neighbour_number` | Picked a different number **that is printed on the page**. Grounding. |
+| `wrong_value` | Complete, plausible, incorrect. Hardest to detect at runtime. |
+
+`neighbour_number` earns its extra code: it separates a model inventing a figure from a
+model reading the wrong figure off the document. Lumping both into "wrong" would hide a
+grounding failure that has a different fix.
+
+**Observable result.** The eleven errors are four causes, not eleven problems. Five are the
+same missing `customer_vat_id` across five documents, because `pdftotext -layout` puts
+supplier and customer VAT on one line. Two returned the invoice number as the VAT ID,
+matching the country-code prefix rather than the label. Two picked an adjacent amount from
+the money column. One returned a field label instead of its value.
+
+That reordered the priorities. Column-aware segmentation removes five errors with a
+preprocessing change and no model swap, while three of the remaining errors are already
+caught downstream by arithmetic or by `python-stdnum`.
+
+```bash
+cd backend
+uv run --locked --no-sync python scripts/error_analysis.py --report ../docs/evaluation-gemma4-cloud.md
+OLLAMA_MODEL=gemma3:1b uv run --locked --no-sync python scripts/error_analysis.py \
+    --report ../docs/evaluation-gemma3-1b.md
+```
+
+**Checkpoint.**
+- [ ] `gemma4:cloud` reports 169/169 with zero field errors.
+- [ ] `gemma3:1b` reports 158/169 and names four distinct failure modes.
+
+---
+
+## Slice 11 — Say it in the first person
+
+**Outcome.** The README opens with the fuel-receipt failure rather than a definition.
+
+**Why.** It read as neutral product documentation: no first-person voice, and the one story
+worth telling — a structure fix beating a model swap — was buried in a commit message.
+Every claim in it now carries a number that can be checked in the repository, and a "what it
+does not do" section states the offline accuracy cost, the absent CI, and that the
+confidence threshold is unvalidated.
+
+---
+
 ## Full verification
 
 ```bash
@@ -272,6 +329,7 @@ uv run --locked --no-sync ruff check app scripts
 uv run --locked --no-sync python scripts/check_deterministic.py
 uv run --locked --no-sync python scripts/evaluate_corpus.py --merged \
   --baseline baselines/gemma4-cloud.json --min-accuracy 99
+uv run --locked --no-sync python scripts/error_analysis.py
 
 cd ../frontend
 pnpm exec tsc -b --pretty false

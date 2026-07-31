@@ -163,6 +163,7 @@ are invoked as subprocesses.
 [Architecture](docs/architecture.md) · [Evaluation](docs/evaluation.md) ·
 [API and pipeline](docs/api-and-pipeline.md) ·
 [Build log](docs/build-along.md) · [Deployment](docs/local-deploy.md) ·
+[Open work](docs/HANDOFF.md) ·
 [Client brief](docs/client-brief.md)
 
 ## Credits

@@ -184,6 +184,16 @@ Baselines live in `backend/baselines/` and record the model that produced them; 
 evaluator refuses to compare across models, because local and cloud accuracy are not
 comparable numbers.
 
+### Per-field error analysis
+
+```bash
+uv run --locked --no-sync python scripts/error_analysis.py --report ../docs/evaluation.md
+```
+
+Compares every field against the manifest and classifies each disagreement — `missing`,
+`spurious`, `truncated`, `neighbour_number`, `wrong_value` — because each implies a different
+fix. See [evaluation.md](evaluation.md) for the current findings.
+
 `evaluate_hybrid.py` reports provenance for selected documents: which fields came from the
 primary extraction, which the independent review supplied, and which conflicted.
 
