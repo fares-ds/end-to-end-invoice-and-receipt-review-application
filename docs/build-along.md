@@ -23,6 +23,25 @@ runs on the developer machine or through one Ollama subscription.
 | Azure OpenAI (review, GL, correction email) | Ollama through `app/providers/ollama_client.py` |
 | Azure Container Registry / Container Apps | `docker-compose.yml` |
 
+```mermaid
+flowchart LR
+    subgraph before["Before: metered cloud"]
+        b1["Azure AI<br/>Document Intelligence"]
+        b2["Azure OpenAI"]
+        b3["Azure Container Apps"]
+    end
+
+    subgraph after["After"]
+        a1["poppler + tesseract<br/>local, free"]
+        a2["Ollama model"]
+        a3["docker compose"]
+    end
+
+    b1 --> a1
+    b2 --> a2
+    b3 --> a3
+```
+
 The key seam is that the local extractor emits the same `AnalyzeResult` dictionary shape the
 hosted service returned. The invoice and receipt mappers, the domain models, validation, and
 the entire frontend were therefore unchanged.

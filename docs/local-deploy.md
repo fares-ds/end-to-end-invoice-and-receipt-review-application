@@ -49,6 +49,28 @@ cp frontend/.env.example frontend/.env
 
 ## Option 2: docker
 
+```mermaid
+flowchart TB
+    browser["Browser<br/>localhost:8000"]
+
+    subgraph machine["Your machine"]
+        subgraph cont["app container"]
+            api["FastAPI + built SPA"]
+            bins["poppler + tesseract"]
+        end
+        ollama["Ollama<br/>localhost:11434<br/>signed in"]
+        vol[("app-data volume<br/>SQLite + uploads")]
+    end
+
+    cloud["Ollama Cloud<br/>gemma4:cloud"]
+
+    browser --> api
+    api --> bins
+    api -->|host.docker.internal:11434| ollama
+    ollama -->|subscription| cloud
+    api --> vol
+```
+
 The image bundles poppler and tesseract and talks to the Ollama on your host. It
 deliberately does not run its own Ollama: cloud credentials belong to the signed-in host
 instance, and on Apple silicon a container cannot reach the Metal GPU.

@@ -9,6 +9,26 @@ calls go to Ollama, which by default uses a cloud-served model for accuracy — 
 signed-in Ollama account with a subscription. Set `OLLAMA_MODEL` to a local model to run
 fully offline at lower accuracy; see [Accuracy](#accuracy).
 
+## How it works
+
+```mermaid
+flowchart LR
+    doc["Invoice or receipt<br/>PDF, PNG, JPEG"] --> ocr["Local OCR<br/>poppler + tesseract"]
+    ocr --> extract["Structured extraction"]
+    ocr --> review["Independent second reading"]
+    extract --> merge["Merge<br/>primary wins conflicts"]
+    review --> merge
+    merge --> rules["Northstar rules<br/>VAT, totals, duplicates"]
+    rules --> gl["GL suggestion"]
+    gl --> maya["Finance administrator<br/>approves, rejects,<br/>or asks for a correction"]
+
+    classDef human fill:#fde8d0,stroke:#b5761f,color:#1a1a1a
+    class maya human
+```
+
+A person makes the decision. The rules that block approval are ordinary Python and no model
+output becomes policy.
+
 ## The stack
 
 | Concern | Component |

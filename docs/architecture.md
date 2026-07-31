@@ -29,7 +29,15 @@ flowchart TB
     rules --> gl[GL suggestion]
     gl --> db[(SQLite)]
     db --> ui
+
+    classDef model fill:#e8e0ff,stroke:#6b4fbb,color:#1a1a1a
+    classDef pure fill:#dff0e4,stroke:#3f8f5c,color:#1a1a1a
+    class classify,extract,review,gl model
+    class merge,rules pure
 ```
+
+Purple stages make a model call. Green stages are pure and deterministic: they decide what
+blocks approval, and no model output reaches them as policy.
 
 ## Reading a document twice, by different routes
 
@@ -41,6 +49,28 @@ each path:
 | --- | --- | --- |
 | Primary extraction | `pdftotext -layout` | tesseract |
 | Independent review | tesseract on the raster | tesseract |
+
+```mermaid
+flowchart TB
+    pdf["PDF upload"]
+    img["Image upload"]
+
+    pdf --> layer["pdftotext -layout<br/>embedded text layer"]
+    pdf --> raster["pdftoppm 200 DPI<br/>then tesseract"]
+    img --> tess["tesseract"]
+
+    layer --> primary["Primary extraction"]
+    tess --> primary
+    raster --> review["Independent review"]
+    tess -. "same source, review says so" .-> review
+
+    primary --> merge["Deterministic merge<br/>primary wins conflicts"]
+    review --> merge
+    merge --> out["Merged review data"]
+
+    classDef shared stroke-dasharray: 4 3
+    class tess shared
+```
 
 This matters because the review exists to disagree. When both paths read the identical
 string, agreement between them carries no information and a shared misreading is confirmed
@@ -73,6 +103,30 @@ read** — not whether a value was normalized afterwards.
   rendering of the same day, and a VAT identifier repaired from OCR damage is scored against
   the original reading while storing the correction.
 
+```mermaid
+flowchart TB
+    v["Extracted value"] --> kind{"Which kind?"}
+
+    kind -->|date| d{"Any ordinary rendering<br/>of this day on the page?"}
+    kind -->|repaired VAT| r{"Original reading<br/>on the page?"}
+    kind -->|anything else| o{"On the page verbatim?"}
+
+    d -->|yes| full["Keep OCR confidence"]
+    r -->|yes| full
+    o -->|yes| full
+    d -->|no| pen["Multiply by 0.75<br/>marked inferred"]
+    r -->|no| pen
+    o -->|no| pen
+
+    full --> th{"Below 0.80?"}
+    pen --> th
+    th -->|yes| warn["low_confidence warning"]
+    th -->|no| clean["No warning"]
+```
+
+Both normalization branches were once scored as inferences, which pushed correct values
+under the threshold and produced warnings the reviewer could do nothing about.
+
 ## Structured output
 
 Ollama constrains locally-served models with a grammar, so they honour a `json_schema`
@@ -94,3 +148,17 @@ model server. Neither is verified by importing the application.
   the application.
 - `GET /health` is liveness only. `GET /ready` reports both and returns 503 when a review
   could not actually be served.
+
+```mermaid
+flowchart TB
+    boot["create_app"] --> bin{"OCR binaries<br/>on PATH?"}
+    bin -->|no| fatal["MissingDependencyError<br/>startup fails loudly"]
+    bin -->|yes| running["Application running"]
+
+    running --> health["GET /health<br/>200 while the process lives"]
+    running --> ready["GET /ready"]
+
+    ready --> probe{"Binaries present,<br/>model server reachable,<br/>model available?"}
+    probe -->|yes| ok["200 ready true"]
+    probe -->|no| bad["503 with the reason"]
+```

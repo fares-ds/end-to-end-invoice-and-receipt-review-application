@@ -59,7 +59,36 @@ Status after a successful pipeline run:
 - `needs_review` — validation reported at least one **error**
 - `ready` — pipeline finished without validation errors (warnings allowed)
 
-Decided records use `approved` or `rejected` and become immutable. A pipeline exception is persisted as `failed`, then the HTTP handler returns **502**. Unsupported documents from the LLM review return **422**.
+Decided records use `approved` or `rejected` and become immutable. A pipeline exception is persisted as `failed`, then the HTTP handler returns **502**. Unsupported documents from the independent review return **422**.
+
+```mermaid
+stateDiagram-v2
+    [*] --> processing: upload
+
+    processing --> ready: no error issues
+    processing --> needs_review: one or more error issues
+    processing --> failed: pipeline exception
+
+    ready --> needs_review: correction re-runs policy
+    needs_review --> ready: correction resolves the errors
+
+    ready --> approved: decision, valid GL selected
+    ready --> rejected: decision
+    needs_review --> rejected: decision
+
+    approved --> [*]
+    rejected --> [*]
+    failed --> [*]
+
+    note right of needs_review
+        Approval is refused while any
+        error issue remains
+    end note
+    note right of failed
+        A failed or still-processing
+        record cannot receive a decision
+    end note
+```
 
 ---
 
@@ -79,6 +108,35 @@ Decided records use `approved` or `rejected` and become immutable. A pipeline ex
 
 Steps 1, 3 and 5 each make one model call. A correction-email draft adds a fourth, only when
 a reviewer requests it.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant UI as React UI
+    participant API as FastAPI
+    participant OCR as poppler + tesseract
+    participant M as Ollama model
+    participant DB as SQLite
+
+    UI->>API: POST /api/documents
+    API->>OCR: recover text
+    OCR-->>API: text and confidence
+    API->>M: classify invoice or receipt
+    M-->>API: document kind
+    API->>M: structure the fields
+    M-->>API: primary extraction
+    Note over API,OCR: second reading, different route
+    API->>OCR: rasterize and OCR the PDF
+    OCR-->>API: independent text
+    API->>M: extract independently
+    M-->>API: review fields
+    API->>API: merge, primary wins conflicts
+    API->>API: Northstar rules, pure
+    API->>M: suggest a GL account
+    M-->>API: account code
+    API->>DB: persist review
+    API-->>UI: 201 DocumentResponse
+```
 
 ---
 
