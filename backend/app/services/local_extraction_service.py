@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, ValidationError
+from stdnum.eu import vat as eu_vat
 
 from app.config import Settings, get_settings
 from app.providers.ollama_client import build_ollama_client
@@ -109,24 +110,14 @@ def _digits_only(body: str) -> str:
     return "".join(LETTER_TO_DIGIT.get(character, character) for character in body)
 
 
-def repair_vat_id(raw: str | None) -> str | None:
-    """Undo common OCR letter/digit confusion inside a VAT identifier.
+def _is_valid_vat(value: str) -> bool:
+    try:
+        return bool(eu_vat.is_valid(value))
+    except Exception:  # noqa: BLE001 - stdnum raises varied errors on malformed input
+        return False
 
-    Tesseract reads ``NL00449544B01`` as ``NLO0449544B01``. Repair is driven by each
-    country's shape rather than a fixed length, because the corpus contains VAT IDs
-    that are shorter than the official specification. Only positions that must hold a
-    digit are rewritten, so the structural ``B`` in a Dutch VAT ID and the alphanumeric
-    prefix of a French one survive.
 
-    This only cleans up character recognition. ``python-stdnum`` still performs the
-    real structure and checksum validation downstream.
-    """
-    if raw is None:
-        return None
-    cleaned = re.sub(r"[\s.\-/]", "", raw).upper()
-    if len(cleaned) < 3 or not cleaned[:2].isalpha():
-        return cleaned or None
-
+def _apply_country_repair(cleaned: str) -> str:
     country, body = cleaned[:2], cleaned[2:]
 
     if country in NUMERIC_BODY_COUNTRIES:
@@ -148,8 +139,37 @@ def repair_vat_id(raw: str | None) -> str | None:
         # First and last positions may legitimately be letters.
         if len(body) >= 2:
             return country + body[0] + _digits_only(body[1:-1]) + body[-1]
-        return cleaned
     return cleaned
+
+
+def repair_vat_id(raw: str | None) -> str | None:
+    """Undo common OCR letter/digit confusion inside a VAT identifier.
+
+    Tesseract reads ``NL00449544B01`` as ``NLO0449544B01``. Repair is driven by each
+    country's shape rather than a fixed length, because the corpus contains VAT IDs
+    that are shorter than the official specification. Only positions that must hold a
+    digit are rewritten, so the structural ``B`` in a Dutch VAT ID and the alphanumeric
+    prefix of a French one survive.
+
+    A rewrite is kept only when it yields a genuinely valid identifier. An invalid
+    VAT number is evidence the reviewer may have to quote back to the supplier, so a
+    value that cannot be repaired is returned exactly as it was read rather than
+    silently mangled — ``DE-NOT-A-VAT`` must not become ``DEN0TAVAT``.
+    """
+    if raw is None:
+        return None
+    original = raw.strip()
+    if not original:
+        return None
+
+    cleaned = re.sub(r"[\s.\-/]", "", original).upper()
+    if len(cleaned) < 3 or not cleaned[:2].isalpha():
+        return original
+
+    for candidate in (_apply_country_repair(cleaned), cleaned):
+        if _is_valid_vat(candidate):
+            return candidate
+    return original
 
 
 def _decimal_or_none(raw: str | None) -> Decimal | None:
@@ -169,6 +189,27 @@ def _iso_date_or_none(raw: str | None) -> str | None:
         return None
     match = re.search(r"(\d{4})-(\d{2})-(\d{2})", str(raw))
     return match.group(0) if match else None
+
+
+def _date_renderings(iso: str) -> list[str]:
+    """Every ordinary way a European document might print this date."""
+    try:
+        year, month, day = iso.split("-")
+    except ValueError:
+        return [iso]
+
+    orders = (
+        (year, month, day),
+        (day, month, year),
+        (month, day, year),
+    )
+    renderings: list[str] = []
+    for separator in ("-", "/", ".", ""):
+        for parts in orders:
+            renderings.append(separator.join(parts))
+            # Continental documents often drop the leading zero.
+            renderings.append(separator.join(p.lstrip("0") or "0" for p in parts))
+    return renderings
 
 
 class _FieldBuilder:
@@ -195,11 +236,47 @@ class _FieldBuilder:
             "confidence": self._confidence(raw),
         }
 
+    def corrected_string(
+        self, raw: str | None, corrected: str | None
+    ) -> dict[str, Any] | None:
+        """Store a normalized value while scoring the text actually read.
+
+        A VAT identifier repaired from OCR confusion no longer appears verbatim on
+        the page. Confidence should express how well the page was read, so it is
+        measured against the original reading; the corrected form is what downstream
+        validation and the reviewer see.
+        """
+        if not corrected:
+            return None
+        return {
+            "valueString": corrected,
+            "content": raw,
+            "confidence": self._confidence(raw),
+        }
+
     def date(self, raw: str | None) -> dict[str, Any] | None:
         iso = _iso_date_or_none(raw)
         if iso is None:
             return None
-        return {"valueDate": iso, "content": raw, "confidence": self._confidence(raw)}
+        return {
+            "valueDate": iso,
+            "content": raw,
+            "confidence": self._date_confidence(iso),
+        }
+
+    def _date_confidence(self, iso: str) -> float:
+        """Score a date by whether the page shows it in any ordinary format.
+
+        The extraction prompt requires ISO output, so a document printing
+        "19-07-2026" yields "2026-07-19". Treating that mandated reformatting as an
+        inference would penalise the model for following instructions, so every
+        common rendering of the same date counts as found verbatim.
+        """
+        for rendering in _date_renderings(iso):
+            needle = re.sub(r"[\s]", "", rendering).upper()
+            if needle in self._haystack:
+                return round(self._base, 4)
+        return round(self._base * INFERRED_VALUE_PENALTY, 4)
 
     def money(self, raw: str | None, currency: str | None) -> dict[str, Any] | None:
         amount = _decimal_or_none(raw)
@@ -307,10 +384,14 @@ class LocalExtractionService:
             {
                 "VendorName": build.string(extracted.vendor_name),
                 "VendorAddress": build.address(extracted.vendor_address),
-                "VendorTaxId": build.string(repair_vat_id(extracted.vendor_vat_id)),
+                "VendorTaxId": build.corrected_string(
+                    extracted.vendor_vat_id, repair_vat_id(extracted.vendor_vat_id)
+                ),
                 "CustomerName": build.string(extracted.customer_name),
                 "CustomerAddress": build.address(extracted.customer_address),
-                "CustomerTaxId": build.string(repair_vat_id(extracted.customer_vat_id)),
+                "CustomerTaxId": build.corrected_string(
+                    extracted.customer_vat_id, repair_vat_id(extracted.customer_vat_id)
+                ),
                 "InvoiceId": build.string(extracted.invoice_number),
                 "PurchaseOrder": build.string(extracted.purchase_order),
                 "InvoiceDate": build.date(extracted.invoice_date),
