@@ -6,9 +6,9 @@ Read `docs/client-brief.md`, `docs/architecture.md`, and `docs/build-along.md` b
 
 - Backend: Python 3.12+, uv, FastAPI, Pydantic v2, SQLAlchemy 2, SQLite.
 - Extraction: local OCR (poppler `pdftotext`/`pdftoppm` plus `tesseract`) structured by a local model.
-- Independent review and categorization: a local Ollama model through the OpenAI-compatible API with strict structured output.
+- Independent review and categorization: an Ollama-served model through the OpenAI-compatible API with strict structured output. The default is cloud-served for accuracy; a local model is supported for offline use.
 - VAT checks: local EU structure/checksum validation with `python-stdnum`; no live VIES claim.
-- The whole stack runs offline on a developer machine. No paid account, API key, or cloud service is required.
+- Document extraction (poppler, tesseract) is always local and free. Model calls default to a cloud-served Ollama model, which requires a signed-in account with a subscription. Setting `OLLAMA_MODEL` to a local model restores fully offline operation at measurably lower accuracy.
 - Frontend: Vite, React, TypeScript strict, Tailwind CSS, pnpm.
 - Verification: Ruff for backend; TypeScript, ESLint, production build, explicit live evaluators, and a manual browser walkthrough for the complete flow.
 

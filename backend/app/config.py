@@ -8,9 +8,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
-# Local Ollama defaults. Ollama ignores the API key but the OpenAI SDK requires a
+# Ollama defaults. Ollama ignores the API key but the OpenAI SDK requires a
 # non-empty value, so a placeholder is used rather than a real credential.
-DEFAULT_MODEL = "gemma3:1b"
+#
+# The default is a cloud-served model. It is accurate enough to classify receipts
+# and read two-column layouts, which the small local models that fit in ordinary
+# memory are not. It requires a signed-in Ollama account with a subscription.
+DEFAULT_MODEL = "gemma4:cloud"
 DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434/v1"
 DEFAULT_OCR_LANGUAGES = "eng+nld+deu+fra"
 

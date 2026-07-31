@@ -1,25 +1,31 @@
 # Cost and resource use
 
-Invoice Review has no metered component. Every stage that once called a hosted service now
-runs on the developer machine, so the monetary cost of any workload is **€0.00**, including
-reprocessing the same document repeatedly.
+There is no per-page or per-token meter in this project. Document extraction is entirely
+local and free. The default model is cloud-served by Ollama, which is a flat subscription
+rather than usage billing, so reprocessing a document repeatedly costs nothing extra but
+does consume whatever allowance that subscription carries.
+
+Setting `OLLAMA_MODEL` to a local model removes the subscription entirely and makes every
+stage free, at measurably lower accuracy.
 
 ## Cost of this setup
 
-| Component | Where it runs | Standing cost | Usage cost |
-| --- | --- | ---: | ---: |
-| Document extraction (poppler + tesseract) | Developer machine | €0 | €0 |
-| Classification, review, GL suggestion, correction email (Ollama) | Developer machine | €0 | €0 |
-| FastAPI, React, SQLite, uploaded files | Developer machine | €0 | €0 |
-| Hosting, managed database, object storage | Not deployed | €0 | €0 |
+| Component | Where it runs | Cost |
+| --- | --- | --- |
+| Document extraction (poppler + tesseract) | Developer machine | €0 |
+| Model calls, default `gemma4:cloud` | Ollama cloud | Ollama subscription — see <https://ollama.com/upgrade> |
+| Model calls with a local `OLLAMA_MODEL` | Developer machine | €0 |
+| FastAPI, React, SQLite, uploaded files | Developer machine | €0 |
+| Hosting, managed database, object storage | Not deployed | €0 |
 
-There is no request quota, no page allowance, no token meter, and no per-document limit. The
-4 MB upload cap is an application policy, not a provider constraint.
+No prices are quoted here because Ollama sets them and they change. The 4 MB upload cap is
+an application policy, not a provider constraint.
 
-## What it costs instead: memory and time
+## What a local model costs instead: memory and time
 
-The real budget is local resources. Ollama refuses to load a model that does not fit in
-available memory, and an oversized model is killed mid-request, so plan for headroom.
+Running offline trades subscription for local resources. Ollama refuses to load a model that
+does not fit in available memory, and an oversized model is killed mid-request, so plan for
+headroom.
 
 | Model | Approx. resident size | Suitable when |
 | --- | ---: | --- |
@@ -43,8 +49,7 @@ which is measurably less accurate on the same corpus. Confidence is derived rath
 model-reported: a value found verbatim in the recovered text keeps the OCR confidence, and a
 value the model reformatted or inferred is reduced by 25%.
 
-Measure it yourself rather than trusting an estimate — the evaluator is free to run as often
-as you like:
+Measure it yourself rather than trusting an estimate:
 
 ```bash
 cd backend

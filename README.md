@@ -4,15 +4,17 @@ An end-to-end invoice and receipt review application for Northstar Facilities B.
 combines local OCR extraction, deterministic finance rules, SQLite persistence, and a human
 review interface.
 
-Every stage runs on your own machine. There is no cloud account, no API key, and no metered
-service anywhere in the stack.
+Document extraction runs entirely on your own machine with poppler and tesseract. The model
+calls go to Ollama, which by default uses a cloud-served model for accuracy — that needs a
+signed-in Ollama account with a subscription. Set `OLLAMA_MODEL` to a local model to run
+fully offline at lower accuracy; see [Accuracy](#accuracy).
 
 ## The stack
 
 | Concern | Component |
 | --- | --- |
 | Document extraction | poppler (`pdftotext`, `pdftoppm`) and `tesseract` |
-| Classification, independent review, GL suggestion, correction email | a local model served by [Ollama](https://ollama.com) |
+| Classification, independent review, GL suggestion, correction email | a model served by [Ollama](https://ollama.com), cloud-served by default |
 | VAT validation | offline EU structure and checksum checks via `python-stdnum` |
 | API | FastAPI, Pydantic v2, SQLAlchemy 2, SQLite |
 | Interface | Vite, React, TypeScript, Tailwind CSS |
@@ -21,7 +23,7 @@ service anywhere in the stack.
 
 - Python 3.12 or newer, and [uv](https://docs.astral.sh/uv/)
 - Node.js 22 or newer, and pnpm 11
-- [Ollama](https://ollama.com), running locally
+- [Ollama](https://ollama.com), running locally and signed in (the default model is cloud-served and needs a subscription)
 - poppler and tesseract with the English, Dutch, German, and French language data
 
 ```bash
@@ -36,7 +38,8 @@ sudo apt-get install -y poppler-utils tesseract-ocr \
 ## Install
 
 ```bash
-ollama pull gemma3:1b
+# The default model is cloud-served; sign in rather than pulling weights.
+ollama signin
 
 cd backend
 uv sync --locked
@@ -62,7 +65,8 @@ cp frontend/.env.example frontend/.env
 - API: <http://localhost:8000> (`GET /health` returns `{"status":"ok"}`)
 - Interface: <http://localhost:5173>
 
-Or run the whole thing, model included, in containers:
+Or run the app in a container. It uses the Ollama on your host, because cloud credentials
+belong to the signed-in host instance:
 
 ```bash
 docker compose up --build
@@ -82,7 +86,7 @@ uv run --locked --no-sync python scripts/check_deterministic.py
 # Corpus accuracy, with optional gating and regression detection
 uv run --locked --no-sync python scripts/evaluate_corpus.py --merged
 uv run --locked --no-sync python scripts/evaluate_corpus.py --min-accuracy 90
-uv run --locked --no-sync python scripts/evaluate_corpus.py --baseline baselines/gemma3-1b.json
+uv run --locked --no-sync python scripts/evaluate_corpus.py --baseline baselines/gemma4-cloud.json
 
 cd ../frontend
 pnpm exec tsc -b --pretty false
@@ -90,22 +94,24 @@ pnpm lint
 pnpm build
 ```
 
-The corpus evaluator runs entirely locally, so it costs nothing and can be repeated as often
-as you like.
+OCR and the deterministic checks are local and free. The corpus evaluator makes model calls,
+so with the default cloud model it consumes your Ollama subscription allowance.
 
-## Accuracy note
+## Accuracy
 
 Accuracy depends heavily on the model. Measured on the 13-document corpus:
 
 | Model | Field accuracy | Exact documents | Policy matches |
 | --- | ---: | ---: | ---: |
-| `gemma3:1b` (default, local) | 93.5% | 3/13 | 4/13 |
-| `gemma4:cloud` | 100% | 13/13 | 13/13 |
+| `gemma4:cloud` (default) | 100% | 13/13 | 13/13 |
+| `gemma3:1b` (fully offline) | 93.5% | 3/13 | 4/13 |
 
-`gemma3:1b` is the default because it loads on a machine with very little free memory. It
-misclassifies receipts as invoices and misreads some two-column layouts. If accuracy
-matters more than staying offline, point `OLLAMA_MODEL` at a larger model and re-run the
-evaluator to measure it yourself.
+The cloud model is the default because the small local models that fit in ordinary memory
+are not good enough for this work: `gemma3:1b` misclassifies a receipt as an invoice, which
+applies the wrong rulebook, and it misreads two-column supplier/customer layouts.
+
+Running fully offline is still supported — set `OLLAMA_MODEL=gemma3:1b` — but measure it
+rather than assuming, with `scripts/evaluate_corpus.py`.
 
 Confidence shown in the interface is derived, not model-reported: a value found in the
 recovered text keeps the OCR confidence, and a value the model inferred is reduced.
