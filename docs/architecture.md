@@ -1,10 +1,10 @@
 # Target architecture
 
-Invoice Review will be built as a small local full-stack application. The learner starter intentionally contains only a FastAPI health endpoint and a React landing screen.
+Invoice Review is a small local full-stack application. Every stage runs on the developer machine: OCR through poppler and tesseract, and all model calls through a local Ollama server.
 
 ## Intended boundaries
 
-- Provider adapters normalize Azure responses before data reaches the domain.
+- Provider adapters normalize OCR and model responses before data reaches the domain.
 - Deterministic invoice and receipt rules remain separate from model extraction.
 - Routes own HTTP concerns, a service owns orchestration, and a repository owns SQLite access.
 - Environment values are read through one backend settings module and one frontend environment module.
@@ -16,7 +16,7 @@ Invoice Review will be built as a small local full-stack application. The learne
 flowchart LR
     user[Finance administrator] --> ui[React review UI]
     ui --> api[FastAPI]
-    api --> providers[Azure provider adapters]
+    api --> providers[Local OCR + Ollama adapters]
     providers --> normalized[Normalized document data]
     normalized --> rules[Deterministic finance rules]
     rules --> db[(SQLite)]

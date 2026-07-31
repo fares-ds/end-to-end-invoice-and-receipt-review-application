@@ -1,0 +1,99 @@
+import argparse
+import json
+from pathlib import Path
+from typing import Any
+
+from app.config import APP_CONFIG, get_settings
+from app.document_review.reconciliation import FIELDS, merge_document_extractions
+from app.document_review.schemas import DocumentReview
+from app.documents.projection import project_extraction
+from app.documents.schemas import ReviewData, ValidationIssue
+from app.documents.validation import status_for_issues, validate_review_data
+from app.providers.ollama_document_review import OllamaDocumentReviewer
+from app.schemas.invoice.mapping import map_invoice_result
+from app.schemas.receipt.mapping import map_receipt_result
+from app.services.local_extraction_service import LocalExtractionService
+
+ROOT = Path(__file__).parents[2]
+SAMPLES = ROOT / "samples" / "generated"
+DEFAULT_FILES = ("02-nl-happy-compact.pdf", "13-nl-fuel-receipt.png")
+CONTENT_TYPES = {".pdf": "application/pdf", ".png": "image/png", ".jpg": "image/jpeg"}
+
+
+def build_result(
+    filename: str,
+    primary: ReviewData,
+    merged: ReviewData,
+    review: DocumentReview,
+    issues: list[ValidationIssue],
+) -> dict[str, Any]:
+    primary_fields = [
+        field for field, _label, _normalizer in FIELDS if getattr(primary, field) is not None
+    ]
+    conflict_fields = [
+        item.field for item in review.comparisons if item.status == "different"
+    ]
+    return {
+        "filename": filename,
+        "document_type": merged.document_type,
+        "expense_category": merged.expense_category,
+        "document_intelligence_model": (
+            "prebuilt-receipt" if merged.document_type == "receipt" else "prebuilt-invoice"
+        ),
+        "primary_fields": primary_fields,
+        "fallback_fields": [item.field for item in review.fallback_fields],
+        "conflict_fields": conflict_fields,
+        "final_status": status_for_issues(issues),
+        "issue_codes": [issue.code for issue in issues],
+        "model_calls": {
+            "document_intelligence": 1,
+            "source_document_llm": 1,
+        },
+    }
+
+
+def extract_primary(
+    service: LocalExtractionService, path: Path, document_type: str
+) -> ReviewData:
+    if document_type == "receipt":
+        result = service.analyze_receipt(path)
+        return project_extraction(map_receipt_result(result))
+    result = service.analyze_invoice(path)
+    return project_extraction(map_invoice_result(result))
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Compare primary local extraction with LLM fallback on selected samples."
+    )
+    parser.add_argument("filenames", nargs="*", default=list(DEFAULT_FILES))
+    args = parser.parse_args()
+    settings = get_settings()
+    service = LocalExtractionService(settings)
+    reviewer = OllamaDocumentReviewer(settings=settings)
+    results: list[dict[str, Any]] = []
+
+    for filename in args.filenames:
+        path = SAMPLES / Path(filename).name
+        content_type = CONTENT_TYPES.get(path.suffix.lower())
+        if content_type is None:
+            raise SystemExit(f"Unsupported evaluation file: {filename}")
+        extraction = reviewer.review(path, content_type)
+        if extraction.document_type == "unsupported":
+            raise SystemExit(f"Model did not recognize {filename} as an invoice or receipt")
+        primary = extract_primary(service, path, extraction.document_type)
+        merged, review = merge_document_extractions(primary, extraction)
+        issues = validate_review_data(
+            merged,
+            expected_customer_name=APP_CONFIG.expected_customer_name,
+            expected_customer_vat_id=APP_CONFIG.expected_customer_vat_id,
+            min_confidence=APP_CONFIG.min_field_confidence,
+            is_duplicate=False,
+        )
+        results.append(build_result(filename, primary, merged, review, issues))
+
+    print(json.dumps(results, indent=2))
+
+
+if __name__ == "__main__":
+    main()

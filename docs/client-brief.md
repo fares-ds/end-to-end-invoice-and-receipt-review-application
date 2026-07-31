@@ -15,23 +15,23 @@ All product copy, source code, documentation, and teaching content is English. O
 ## What's included in the build
 
 - One PDF or image per upload, with a 4 MB limit.
-- Automatic invoice/receipt recognition with strict Azure OpenAI output.
-- Azure AI Document Intelligence `prebuilt-invoice` and `prebuilt-receipt` extraction.
-- An independent Azure OpenAI extraction of the same PDF/PNG/JPEG.
-- A deterministic merge that keeps Document Intelligence values and fills only its missing fields from the LLM, with visible provenance and conflicts.
+- Automatic invoice/receipt recognition with strict structured output from a local model.
+- Local OCR extraction (poppler and tesseract) structured into invoice and receipt fields.
+- An independent local-model extraction of the same document.
+- A deterministic merge that keeps the primary OCR extraction and fills only its missing fields from the independent review, with visible provenance and conflicts.
 - Invoice supplier/customer details and VAT IDs, dates, PO, currency, and totals.
 - Receipt merchant, transaction date, expense category, subtotal, VAT, and total.
 - Offline EU invoice VAT format/checksum validation plus receipt VAT-total reconciliation.
 - Separate deterministic invoice and receipt policies, duplicate detection, corrections, approval, and rejection.
-- A fixed Northstar GL catalog plus an Azure OpenAI structured suggestion that a reviewer can override.
+- A fixed Northstar GL catalog plus a local-model structured suggestion that a reviewer can override.
 - SQLite, local file storage, and a guided welcome → upload/preview → process → review flow.
 - Review history with explicit local deletion so the same invoice can be demonstrated again.
-- An on-demand Azure OpenAI correction-email draft with Copy and Close; the app never sends it.
+- An on-demand locally generated correction-email draft with Copy and Close; the app never sends it.
 - A 13-document fictional multilingual corpus containing 12 invoices and one imperfect Dutch fuel receipt.
 
 ## Northstar policy
 
-The Northstar policy is simply the fictional company's rulebook expressed as ordinary Python. It decides what must be fixed before approval; Azure extracts evidence, but it does not own these rules.
+The Northstar policy is simply the fictional company's rulebook expressed as ordinary Python. It decides what must be fixed before approval; extraction supplies evidence, but it does not own these rules.
 
 ### Invoice rules
 
@@ -43,4 +43,4 @@ A receipt records an expense that was already paid, so it does not need an invoi
 
 A valid selected Northstar GL account is also required for approval. The model may suggest one, but Maya remains responsible for the selection.
 
-Document Intelligence stays primary. An LLM value can fill a missing field, but it cannot replace a conflicting primary value, validate VAT, or decide approval. Maya sees where every fallback came from.
+The primary OCR extraction stays primary. An independent-review value can fill a missing field, but it cannot replace a conflicting primary value, validate VAT, or decide approval. Maya sees where every fallback came from.

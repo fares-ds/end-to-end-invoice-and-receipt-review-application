@@ -11,24 +11,19 @@ cd ..
 jq '{documents: length, pages: ([.[].pages] | add)}' samples/manifest.json
 ```
 
-Evaluate the complete golden corpus against the configured live Azure resource with:
+Evaluate the complete golden corpus against the local extraction stack with:
 
 ```bash
 cd backend
 uv run python scripts/evaluate_corpus.py
 ```
 
-The extraction evaluator routes each manifest entry to `prebuilt-invoice` or `prebuilt-receipt`, compares normalized fields, and continues past individual provider failures. Running it consumes 13 Azure analyze transactions across 14 pages. `scripts/evaluate_hybrid.py` runs the Dutch invoice and fuel receipt through both extraction methods and reports primary fields, LLM fallbacks, conflicts, final status, and call counts.
+The extraction evaluator routes each manifest entry to the local invoice or receipt extractor, compares normalized fields, and continues past individual failures. Running it costs nothing and can be repeated freely. `scripts/evaluate_hybrid.py` runs the Dutch invoice and fuel receipt through both extraction methods and reports primary fields, LLM fallbacks, conflicts, final status, and call counts.
 
 The committed set contains eleven PDFs and two PNG images. VAT values are fictional checksum examples and are never presented as verified business registrations.
 
-Microsoft's official sample invoice is downloaded locally for the first Azure provider check and ignored by Git:
-
-```bash
-curl -L \
-  https://raw.githubusercontent.com/Azure-Samples/cognitive-services-REST-api-samples/master/curl/form-recognizer/sample-invoice.pdf \
-  -o samples/sample-invoice.pdf
-```
+The provider check scripts use `01-en-happy-classic.pdf` from this corpus, so no external
+download is required.
 
 Optional external research datasets:
 

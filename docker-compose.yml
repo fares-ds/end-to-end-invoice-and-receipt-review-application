@@ -1,0 +1,59 @@
+# Runs Invoice Review with no cloud account: the app image bundles poppler and
+# tesseract for OCR, and the ollama service supplies the local model.
+#
+#   docker compose up --build
+#   open http://localhost:8000
+#
+# The first start pulls the model into the named volume, which takes a few minutes.
+# On Apple silicon a container cannot reach the Metal GPU, so a native Ollama is
+# faster. To use one, comment out the ollama service and set:
+#   OLLAMA_BASE_URL=http://host.docker.internal:11434/v1
+
+services:
+  ollama:
+    image: ollama/ollama:0.18.2
+    volumes:
+      - ollama-models:/root/.ollama
+    ports:
+      - "11434:11434"
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  model-pull:
+    image: ollama/ollama:0.18.2
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    volumes:
+      - ollama-models:/root/.ollama
+    entrypoint: ["ollama", "pull", "gemma3:1b"]
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      model-pull:
+        condition: service_completed_successfully
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434/v1
+      OLLAMA_MODEL: gemma3:1b
+      OCR_LANGUAGES: eng+nld+deu+fra
+      ALLOWED_ORIGIN: http://localhost:8000
+    ports:
+      - "8000:8000"
+    volumes:
+      # Uploaded documents and the SQLite database stay on the host so a rebuild
+      # does not discard the review history.
+      - app-data:/app/data
+
+volumes:
+  ollama-models:
+  app-data:

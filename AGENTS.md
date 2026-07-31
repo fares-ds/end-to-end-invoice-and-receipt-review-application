@@ -5,22 +5,23 @@ Read `docs/client-brief.md`, `docs/architecture.md`, and `docs/build-along.md` b
 ## Stack
 
 - Backend: Python 3.12+, uv, FastAPI, Pydantic v2, SQLAlchemy 2, SQLite.
-- Extraction: Azure AI Document Intelligence `prebuilt-invoice` and `prebuilt-receipt`.
-- Independent review and categorization: Azure OpenAI Responses API with Entra authentication and strict structured output.
+- Extraction: local OCR (poppler `pdftotext`/`pdftoppm` plus `tesseract`) structured by a local model.
+- Independent review and categorization: a local Ollama model through the OpenAI-compatible API with strict structured output.
 - VAT checks: local EU structure/checksum validation with `python-stdnum`; no live VIES claim.
+- The whole stack runs offline on a developer machine. No paid account, API key, or cloud service is required.
 - Frontend: Vite, React, TypeScript strict, Tailwind CSS, pnpm.
 - Verification: Ruff for backend; TypeScript, ESLint, production build, explicit live evaluators, and a manual browser walkthrough for the complete flow.
 
 ## Boundaries
 
-- Azure SDK types stop in `backend/app/providers/azure_document_intelligence.py`.
+- OCR binaries are invoked only from `backend/app/services/ocr_text_service.py`.
 - OpenAI SDK types stop in the provider adapters under `backend/app/providers/`, including document review, GL suggestion, and correction-email drafting.
-- The document reviewer receives the original PDF/PNG/JPEG and returns classification plus provider-independent structured fields. Document Intelligence remains primary; deterministic merging only fills its missing fields and exposes provenance.
+- The document reviewer returns classification plus provider-independent structured fields. Local OCR extraction remains primary; deterministic merging only fills its missing fields and exposes provenance. By default the reviewer reads the same OCR text as the primary extraction, so the two are not fully independent; setting `OLLAMA_VISION_MODEL` restores an independent image-based review.
 - The GL categorizer receives normalized invoice fields only.
 - The GL catalog and selection validation live in `backend/app/accounting/`; model output never becomes business policy.
-- Business rules live in `backend/app/invoices/validation.py` and must be pure.
+- Business rules live in `backend/app/documents/validation.py` and must be pure.
 - HTTP concerns live in `routes.py`; orchestration lives in `service.py`; SQLite access lives in `repository.py`.
-- Once those modules are introduced, settings are read only through `backend/app/config.py` and `frontend/src/lib/env.ts`.
+- Settings are read only through `backend/app/config.py` and `frontend/src/lib/env.ts`.
 - Do not add auth, queues, workers, deployment, batch processing, email ingestion/sending, or accounting integrations.
 - Receipt processing uses the same normalized financial-document data and a separate deterministic policy. Live VIES registration lookup remains outside the build.
 
@@ -44,9 +45,10 @@ Update `docs/build-along.md` in the same commit as every working slice. Include 
 ## Verification policy
 
 - Do not add automated test suites, `tests/` directories, or `*.test.*` files to this end-to-end teaching project.
-- Keep verification proportional and demo-oriented: verify locked installs on the starter; as code is added, lint the backend, type-check/lint/build the frontend, exercise the fictional corpus evaluators when cloud usage is intended, and manually walk through the user story in the browser.
+- Keep verification proportional and demo-oriented: verify locked installs on the starter; as code is added, lint the backend, type-check/lint/build the frontend, exercise the fictional corpus evaluators, and manually walk through the user story in the browser.
 - Keep deterministic business rules and provider boundaries explicit and easy to inspect even though they are not backed by a committed unit-test suite.
+- Local OCR depends on `poppler-utils` and `tesseract-ocr` with the `eng`, `nld`, `deu`, and `fra` language packs. These are system binaries, not Python dependencies.
 
 ## Secrets and data
 
-Never commit `.env`, Azure keys, uploaded invoices, private documents, or SQLite databases. Generated samples must contain only fictional data.
+Never commit `.env`, uploaded invoices, private documents, or SQLite databases. Generated samples must contain only fictional data. The local stack needs no credentials, so nothing in `backend/.env.example` is a secret.

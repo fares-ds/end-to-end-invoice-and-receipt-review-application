@@ -14,7 +14,7 @@ This is not a Next.js application. Do not introduce Next.js, SSR, server compone
 
 ## Layout
 
-The starter branch intentionally contains only `src/.gitkeep`. Create the interface during the build using this layout:
+The interface uses this layout:
 
 ```text
 frontend/
@@ -41,7 +41,7 @@ Do not create route, state, form, or component frameworks before the workflow ne
 - Prefer `useState`, `useReducer`, and derived values before adding an external state library.
 - Prefer native forms, `FormData`, `Date`, `Intl`, `URL`, and collection methods over helper packages.
 - Keep HTTP behind the thin typed client in `src/lib/api.ts` once that module exists. Use native `fetch`; do not add Axios or another HTTP wrapper.
-- Keep provider and API response shapes behind types in `src/lib`. Components should consume application-facing types.
+- Keep provider and API response shapes behind types in `src/lib`. Components should consume application-facing types and must not name the extraction backend.
 - Use Tailwind classes and the shared global stylesheet. Do not add CSS modules, styled-components, Emotion, or another styling system.
 - Make loading, provider failure, validation issues, review state, and destructive actions visible to the user.
 - Do not add authentication, routing, analytics, or global state unless the user story changes.
@@ -64,7 +64,7 @@ Do not create route, state, form, or component frameworks before the workflow ne
 
 ## Verification
 
-The starter has no frontend implementation. Verify it only with:
+Verify a locked install with:
 
 ```bash
 pnpm install --frozen-lockfile

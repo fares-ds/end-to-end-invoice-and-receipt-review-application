@@ -38,7 +38,7 @@ cp frontend/.env.example frontend/.env
 
 - `GET http://localhost:8000/health` returns `{"status":"ok"}`.
 - `http://localhost:5173` shows the Invoice Review starter screen.
-- No Azure request occurs at this checkpoint.
+- No network request leaves the machine at this checkpoint.
 
 ## Checkpoint
 
