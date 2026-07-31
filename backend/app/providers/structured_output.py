@@ -32,7 +32,8 @@ def build_request(
         instructions = (
             f"{system}\n\n"
             "Reply with a single JSON object and nothing else. No prose, no "
-            "explanation, no markdown fences. It must validate against this JSON "
+            "explanation, no markdown fences. Include only the fields this schema "
+            "defines and no others. It must validate against this JSON "
             f"schema:\n{json.dumps(schema)}"
         )
 

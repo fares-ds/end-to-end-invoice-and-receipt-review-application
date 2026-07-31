@@ -42,8 +42,7 @@ You extract fields from the OCR text of a European supplier invoice. Copy values
 they appear; do not compute, correct, or infer values that are absent. Return dates as
 YYYY-MM-DD. Return monetary values as plain decimal strings with a dot separator and no
 currency symbol or thousands separator. Return the currency as a 3-letter ISO code. Use null
-for any field that is not present in the text. Return only the fields defined by the schema
-and no others. Do not decide whether the invoice is valid.
+for any field that is not present in the text. Do not decide whether the invoice is valid.
 """.strip()
 
 RECEIPT_INSTRUCTIONS = """
@@ -52,7 +51,7 @@ they appear; do not compute, correct, or infer values that are absent. Return da
 YYYY-MM-DD. Return monetary values as plain decimal strings with a dot separator and no
 currency symbol. Return the currency as a 3-letter ISO code. Set receipt_type to the expense
 category: one of fuel, meals, travel, supplies, or other. Use null for any field not present
-in the text. Return only the fields defined by the schema and no others.
+in the text.
 """.strip()
 
 
