@@ -1,7 +1,7 @@
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -16,6 +16,7 @@ from app.documents.models import DocumentRecord
 from app.documents.routes import router as document_router
 from app.providers.ollama_correction_email import OllamaCorrectionEmailDrafter
 from app.providers.ollama_document_review import OllamaDocumentReviewer
+from app.readiness import probe, require_ocr_binaries
 
 
 class AccessPasswordMiddleware(BaseHTTPMiddleware):
@@ -46,6 +47,7 @@ class AccessPasswordMiddleware(BaseHTTPMiddleware):
 
 def create_app() -> FastAPI:
     config = APP_CONFIG
+    require_ocr_binaries(get_settings())
     config.upload_dir.mkdir(parents=True, exist_ok=True)
     database_path = config.database_url.removeprefix("sqlite:///")
     if config.database_url.startswith("sqlite:///"):
@@ -76,7 +78,16 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     def health() -> dict[str, str]:
+        """Liveness only: the process is up. See /ready for dependency state."""
         return {"status": "ok"}
+
+    @app.get("/ready")
+    def ready(response: Response) -> dict[str, object]:
+        """Readiness: whether OCR and the model server can actually serve a review."""
+        report = probe(get_settings())
+        if not report.ready:
+            response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        return report.as_dict()
 
     frontend_dist = settings.resolve_frontend_dist()
     if frontend_dist is not None:

@@ -13,7 +13,6 @@ low-confidence warning can act on.
 from __future__ import annotations
 
 import logging
-import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass
@@ -114,14 +113,6 @@ class OcrTextService:
 
     def __init__(self, settings: Settings | None = None) -> None:
         self._settings = settings or get_settings()
-
-    def missing_binaries(self) -> list[str]:
-        required = [
-            self._settings.tesseract_binary,
-            self._settings.pdftoppm_binary,
-            self._settings.pdftotext_binary,
-        ]
-        return [name for name in required if shutil.which(name) is None]
 
     def extract(self, path: Path, content_type: str) -> OcrDocument:
         if content_type not in SUPPORTED_CONTENT_TYPES:
