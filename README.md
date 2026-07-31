@@ -147,3 +147,15 @@ route, and the review says so when it shares a source.
 
 Start with [the client brief](docs/client-brief.md), then
 [the architecture](docs/architecture.md) and [the API and pipeline](docs/api-and-pipeline.md).
+
+## Credits
+
+This project began from the Invoice Review starter by **Dave Ebbelaar**
+([Datalumina](https://learn.datalumina.com/docs/invoice-review)). The client brief, the
+13-document fictional corpus under `samples/`, the manifest of expected values, and the
+original project configuration are his work.
+
+It has since diverged substantially: the Azure Document Intelligence and Azure OpenAI
+services the tutorial used were replaced with local OCR and Ollama-served models, and the
+verification, confidence model, and independent-review design were rebuilt.
+[docs/build-along.md](docs/build-along.md) records what changed and why.
