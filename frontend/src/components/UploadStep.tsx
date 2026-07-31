@@ -43,7 +43,7 @@ export function UploadStep({ file, error, onChoose, onProcess, onBack }: UploadS
           <p className="mt-5 text-sm text-zinc-500">Step 1 of 3</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">Choose an invoice or receipt</h1>
           <p className="mt-1 text-sm text-zinc-600">
-            Check the preview first. The file is only sent to Azure after you confirm.
+            Check the preview first. The file is only processed after you confirm, and never leaves your machine.
           </p>
         </div>
       </div>

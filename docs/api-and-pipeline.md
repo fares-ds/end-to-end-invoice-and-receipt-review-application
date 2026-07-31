@@ -67,7 +67,7 @@ Decided records use `approved` or `rejected` and become immutable. A pipeline ex
 `build_default_pipeline()` runs:
 
 1. **Classification** — the local model labels invoice vs receipt from recovered text.
-2. **Extraction** — Document Intelligence `prebuilt-invoice` or `prebuilt-receipt`.
+2. **Extraction** — local OCR structured by the `local-invoice` or `local-receipt` extractor.
 3. **Document review** — project DI → `ReviewData`, run independent LLM extraction, merge gaps only (DI wins on conflict).
 4. **Validation** — pure Northstar invoice/receipt policy + duplicate detection.
 5. **GL categorization** — suggest one catalog code from `6100`–`6190`.

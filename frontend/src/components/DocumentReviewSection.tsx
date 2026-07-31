@@ -28,7 +28,7 @@ export function DocumentReviewSection({ review }: DocumentReviewSectionProps) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-zinc-900">Independent LLM cross-check</h3>
-          <p className="mt-1 text-sm text-zinc-500">Azure OpenAI reads the original document separately and compares its extraction with Document Intelligence.</p>
+          <p className="mt-1 text-sm text-zinc-500">A second local model pass reads the document independently and compares its extraction with the primary one.</p>
         </div>
         <Badge variant="secondary">Document Intelligence primary</Badge>
       </div>
@@ -44,7 +44,7 @@ export function DocumentReviewSection({ review }: DocumentReviewSectionProps) {
           <div className="grid min-w-[40rem] grid-cols-[minmax(8rem,0.8fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3 border-b border-zinc-200 bg-zinc-50 px-4 py-2 text-xs font-medium text-zinc-500">
             <span>Field</span>
             <span>Document Intelligence</span>
-            <span>Azure OpenAI</span>
+            <span>Independent review</span>
           </div>
           {differences.map((comparison) => (
             <div key={comparison.field} className="grid min-w-[40rem] grid-cols-[minmax(8rem,0.8fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3 border-b border-zinc-100 px-4 py-3 text-sm last:border-b-0">

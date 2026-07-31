@@ -284,7 +284,7 @@ export function DocumentReview({ document, accounts, accountsLoading, onRetryAcc
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h3 className="text-base font-semibold text-zinc-900">General ledger account</h3>
-                  <p className="mt-1 text-sm text-zinc-500">Azure OpenAI suggests an account. You can override it.</p>
+                  <p className="mt-1 text-sm text-zinc-500">A local model suggests an account. You can override it.</p>
                 </div>
                 {document.accounting_coding?.suggestion && <Badge variant="secondary">{Math.round(document.accounting_coding.suggestion.confidence * 100)}% confidence</Badge>}
               </div>
@@ -323,7 +323,7 @@ export function DocumentReview({ document, accounts, accountsLoading, onRetryAcc
         {draft && (
           <section className="border-t border-zinc-100 pt-7">
             <h3 className="text-base font-semibold text-zinc-900">Review extracted fields</h3>
-            <p className="mt-1 text-sm text-zinc-500">Correct anything that Azure read incorrectly, then rerun the checks.</p>
+            <p className="mt-1 text-sm text-zinc-500">Correct anything that was read incorrectly, then rerun the checks.</p>
             <form onSubmit={(event) => { event.preventDefault(); void save() }} className="mt-6 space-y-7">
               {(isReceipt ? receiptFieldGroups : fieldGroups).map((group) => (
                 <fieldset key={group.title} disabled={locked || busy !== null}>

@@ -38,7 +38,7 @@ def build_result(
         "document_type": merged.document_type,
         "expense_category": merged.expense_category,
         "document_intelligence_model": (
-            "prebuilt-receipt" if merged.document_type == "receipt" else "prebuilt-invoice"
+            "local-receipt" if merged.document_type == "receipt" else "local-invoice"
         ),
         "primary_fields": primary_fields,
         "fallback_fields": [item.field for item in review.fallback_fields],

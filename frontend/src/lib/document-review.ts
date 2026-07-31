@@ -42,6 +42,6 @@ export function summarizeDocumentReview(review: DocumentReviewArtifact): Documen
   return {
     kind: 'agreement',
     title: 'LLM cross-check agrees',
-    description: `Azure OpenAI matched all ${reviewedFields} compared fields.`,
+    description: `The independent review matched all ${reviewedFields} compared fields.`,
   }
 }
