@@ -33,6 +33,18 @@ Choose receipt when the document records an expense that was already paid. Recei
 show a merchant, transaction date, payment total, and sometimes VAT, but not invoice
 numbers, customer VAT IDs, purchase orders, or payment terms.
 
+Documents may be written in English, Dutch, German, or French. Judge by these words rather
+than by how detailed the document looks:
+
+- Invoice: "invoice", "factuur", "Rechnung", "facture".
+- Receipt: "receipt", "kassabon", "bon", "Kassenbon", "Quittung", "Beleg", "ticket",
+  "reçu", "ticket de caisse".
+
+Evidence that a document was already paid — a payment method such as PIN, card, or cash, a
+till or terminal number, a pump number — means receipt, even when VAT is broken out and the
+line detail looks invoice-like. A VAT breakdown alone never makes a document an invoice.
+The absence of an invoice number and a customer is strong evidence for receipt.
+
 Return your best label, a confidence between 0 and 1, and a brief reason.
 """
 

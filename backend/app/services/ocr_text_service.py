@@ -70,18 +70,33 @@ def _run(command: list[str], *, timeout: int = 120) -> subprocess.CompletedProce
 
 
 def _parse_tesseract_tsv(tsv: str) -> tuple[str, list[float]]:
-    """Return recovered text plus the per-word confidences tesseract reported."""
-    words: list[str] = []
+    """Return recovered text plus the per-word confidences tesseract reported.
+
+    Line structure is reconstructed from the block/paragraph/line columns rather
+    than joining every word into one stream. On a financial document the line is
+    what binds a label to its amount: flattened, ``EURO 95`` sits directly beside
+    the money column and gets read as a value. ``pdftotext -layout`` preserves
+    this for PDFs, so the OCR path must preserve it too.
+    """
+    words_by_line: dict[tuple[str, str, str], list[str]] = {}
+    order: list[tuple[str, str, str]] = []
     confidences: list[float] = []
-    lines = tsv.splitlines()
-    for row in lines[1:]:
+
+    for row in tsv.splitlines()[1:]:
         columns = row.split("\t")
         if len(columns) < 12:
             continue
         text = columns[11].strip()
         if not text:
             continue
-        words.append(text)
+
+        # block_num, par_num, line_num identify the physical line of the page.
+        key = (columns[2], columns[3], columns[4])
+        if key not in words_by_line:
+            words_by_line[key] = []
+            order.append(key)
+        words_by_line[key].append(text)
+
         try:
             confidence = float(columns[10])
         except ValueError:
@@ -89,7 +104,9 @@ def _parse_tesseract_tsv(tsv: str) -> tuple[str, list[float]]:
         # Tesseract reports -1 for structural rows that carry no word.
         if confidence >= 0:
             confidences.append(confidence / 100.0)
-    return " ".join(words), confidences
+
+    lines = [" ".join(words_by_line[key]) for key in order]
+    return "\n".join(lines), confidences
 
 
 class OcrTextService:

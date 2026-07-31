@@ -1,18 +1,23 @@
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
-from app.config import APP_CONFIG, get_settings
-from app.document_review.reconciliation import FIELDS, merge_document_extractions
-from app.document_review.schemas import DocumentReview
-from app.documents.projection import project_extraction
-from app.documents.schemas import ReviewData, ValidationIssue
-from app.documents.validation import status_for_issues, validate_review_data
-from app.providers.ollama_document_review import OllamaDocumentReviewer
-from app.schemas.invoice.mapping import map_invoice_result
-from app.schemas.receipt.mapping import map_receipt_result
-from app.services.local_extraction_service import LocalExtractionService
+# Running this file puts scripts/ on sys.path, not backend/. The project is not
+# installed (package = false), so bootstrap the backend root before importing app.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from app.config import APP_CONFIG, get_settings  # noqa: E402
+from app.document_review.reconciliation import FIELDS, merge_document_extractions  # noqa: E402
+from app.document_review.schemas import DocumentReview  # noqa: E402
+from app.documents.projection import project_extraction  # noqa: E402
+from app.documents.schemas import ReviewData, ValidationIssue  # noqa: E402
+from app.documents.validation import status_for_issues, validate_review_data  # noqa: E402
+from app.providers.ollama_document_review import OllamaDocumentReviewer  # noqa: E402
+from app.schemas.invoice.mapping import map_invoice_result  # noqa: E402
+from app.schemas.receipt.mapping import map_receipt_result  # noqa: E402
+from app.services.local_extraction_service import LocalExtractionService  # noqa: E402
 
 ROOT = Path(__file__).parents[2]
 SAMPLES = ROOT / "samples" / "generated"

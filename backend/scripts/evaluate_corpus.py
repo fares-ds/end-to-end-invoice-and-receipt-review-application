@@ -1,17 +1,22 @@
 import json
+import sys
 from collections.abc import Mapping
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
-from app.config import APP_CONFIG
-from app.documents.projection import project_extraction
-from app.documents.schemas import ReviewData
-from app.documents.validation import validate_review_data
-from app.schemas.invoice.mapping import map_invoice_result
-from app.schemas.receipt.mapping import map_receipt_result
-from app.services.local_extraction_service import LocalExtractionService
+# Running this file puts scripts/ on sys.path, not backend/. The project is not
+# installed (package = false), so bootstrap the backend root before importing app.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from app.config import APP_CONFIG  # noqa: E402
+from app.documents.projection import project_extraction  # noqa: E402
+from app.documents.schemas import ReviewData  # noqa: E402
+from app.documents.validation import validate_review_data  # noqa: E402
+from app.schemas.invoice.mapping import map_invoice_result  # noqa: E402
+from app.schemas.receipt.mapping import map_receipt_result  # noqa: E402
+from app.services.local_extraction_service import LocalExtractionService  # noqa: E402
 
 ROOT = Path(__file__).parents[2]
 MANIFEST_PATH = ROOT / "samples" / "manifest.json"

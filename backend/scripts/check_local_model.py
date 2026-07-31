@@ -1,10 +1,16 @@
 
+import sys
 from datetime import date
 from decimal import Decimal
+from pathlib import Path
 
-from app.config import APP_CONFIG, get_settings
-from app.documents.schemas import ReviewData, ReviewLineItem
-from app.pipeline.gl_categorization import GlCategorizer
+# Running this file puts scripts/ on sys.path, not backend/. The project is not
+# installed (package = false), so bootstrap the backend root before importing app.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from app.config import APP_CONFIG, get_settings  # noqa: E402
+from app.documents.schemas import ReviewData, ReviewLineItem  # noqa: E402
+from app.pipeline.gl_categorization import GlCategorizer  # noqa: E402
 
 
 def main() -> None:

@@ -1,8 +1,13 @@
+import sys
 from pathlib import Path
 
-from app.documents.projection import project_extraction
-from app.schemas.invoice.mapping import map_invoice_result
-from app.services.local_extraction_service import LocalExtractionService
+# Running this file puts scripts/ on sys.path, not backend/. The project is not
+# installed (package = false), so bootstrap the backend root before importing app.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from app.documents.projection import project_extraction  # noqa: E402
+from app.schemas.invoice.mapping import map_invoice_result  # noqa: E402
+from app.services.local_extraction_service import LocalExtractionService  # noqa: E402
 
 
 def main() -> None:
