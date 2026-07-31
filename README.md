@@ -100,6 +100,9 @@ The local model is not a smaller version of the cloud one. It classifies a recei
 invoice, which applies the wrong rulebook and raises six errors on a document that should
 pass. Offline is supported and documented with its cost, not presented as equivalent.
 
+Per-field breakdown, failure taxonomy and what to fix next:
+[docs/evaluation.md](docs/evaluation.md).
+
 **The two layers are not redundant.** I reintroduced the OCR flattening bug to check: the
 corpus stayed at 169/169 on `gemma4:cloud`, because a capable model reads flattened text
 fine. The deterministic checks failed six behaviours instantly. End-to-end scores are blind
@@ -157,7 +160,8 @@ are invoked as subprocesses.
 
 ## Documentation
 
-[Architecture](docs/architecture.md) · [API and pipeline](docs/api-and-pipeline.md) ·
+[Architecture](docs/architecture.md) · [Evaluation](docs/evaluation.md) ·
+[API and pipeline](docs/api-and-pipeline.md) ·
 [Build log](docs/build-along.md) · [Deployment](docs/local-deploy.md) ·
 [Client brief](docs/client-brief.md)
 
