@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -45,6 +46,12 @@ class Settings(BaseSettings):
     # model instead of OCR text. Requires a vision-capable model and enough memory.
     ollama_vision_model: str | None = None
 
+    # How structured output is requested. Ollama constrains locally-served models
+    # with a grammar, so they honour a json_schema response format. Cloud-served
+    # models are proxied without that constraint and must be prompted for JSON
+    # instead. "auto" picks per model; set explicitly to override.
+    ollama_output_mode: Literal["auto", "native", "prompted"] = "auto"
+
     ocr_languages: str = DEFAULT_OCR_LANGUAGES
     tesseract_binary: str = "tesseract"
     pdftoppm_binary: str = "pdftoppm"
@@ -75,6 +82,12 @@ class Settings(BaseSettings):
     @property
     def vision_enabled(self) -> bool:
         return self.ollama_vision_model is not None
+
+    def prompted_output(self, model_name: str | None = None) -> bool:
+        """Whether this model needs JSON requested in the prompt rather than enforced."""
+        if self.ollama_output_mode != "auto":
+            return self.ollama_output_mode == "prompted"
+        return (model_name or self.ollama_model).endswith(":cloud")
 
     def resolve_frontend_dist(self) -> Path | None:
         if self.frontend_dist_dir is not None:

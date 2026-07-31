@@ -26,6 +26,7 @@ from app.config import Settings, get_settings
 from app.document_review.base import DocumentReviewer, DocumentReviewError
 from app.document_review.schemas import LlmDocumentExtraction
 from app.providers.ollama_client import build_ollama_client
+from app.providers.structured_output import build_request, parse_json_object
 from app.services.ocr_text_service import OcrError, OcrTextService
 
 logger = logging.getLogger(__name__)
@@ -76,20 +77,18 @@ class OllamaDocumentReviewer(DocumentReviewer):
             model = self._settings.ollama_model
             shared_source = True
 
+        request = build_request(
+            model=model,
+            system=INSTRUCTIONS,
+            user="",
+            schema=LlmDocumentExtraction.model_json_schema(),
+            schema_name="financial_document_review",
+            prompted=self._settings.prompted_output(model),
+        )
+        # The user turn is built per input mode (OCR text or a page image).
+        request["messages"] = [request["messages"][0], message]
         try:
-            response = self.client.chat.completions.create(
-                model=model,
-                messages=[{"role": "system", "content": INSTRUCTIONS}, message],
-                response_format={
-                    "type": "json_schema",
-                    "json_schema": {
-                        "name": "financial_document_review",
-                        "strict": True,
-                        "schema": LlmDocumentExtraction.model_json_schema(),
-                    },
-                },
-                temperature=0,
-            )
+            response = self.client.chat.completions.create(**request)
         except Exception as error:
             raise DocumentReviewError(
                 "The local document review failed. The deterministic review can continue."
@@ -97,7 +96,7 @@ class OllamaDocumentReviewer(DocumentReviewer):
 
         content = response.choices[0].message.content or ""
         try:
-            review = LlmDocumentExtraction.model_validate(json.loads(content))
+            review = LlmDocumentExtraction.model_validate(parse_json_object(content))
         except (json.JSONDecodeError, ValidationError, TypeError) as error:
             raise DocumentReviewError(
                 "The local model did not return valid structured document-review output."

@@ -24,6 +24,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 from app.config import Settings, get_settings
 from app.providers.ollama_client import build_ollama_client
+from app.providers.structured_output import build_request, parse_json_object
 from app.services.ocr_text_service import OcrDocument, OcrError, OcrTextService
 
 logger = logging.getLogger(__name__)
@@ -40,15 +41,17 @@ You extract fields from the OCR text of a European supplier invoice. Copy values
 they appear; do not compute, correct, or infer values that are absent. Return dates as
 YYYY-MM-DD. Return monetary values as plain decimal strings with a dot separator and no
 currency symbol or thousands separator. Return the currency as a 3-letter ISO code. Use null
-for any field that is not present in the text. Do not decide whether the invoice is valid.
+for any field that is not present in the text. Return only the fields defined by the schema
+and no others. Do not decide whether the invoice is valid.
 """.strip()
 
 RECEIPT_INSTRUCTIONS = """
 You extract fields from the OCR text of a European purchase receipt. Copy values exactly as
 they appear; do not compute, correct, or infer values that are absent. Return dates as
 YYYY-MM-DD. Return monetary values as plain decimal strings with a dot separator and no
-currency symbol. Return the currency as a 3-letter ISO code. Classify the expense as fuel,
-meals, travel, supplies, or other. Use null for any field not present in the text.
+currency symbol. Return the currency as a 3-letter ISO code. Set receipt_type to the expense
+category: one of fuel, meals, travel, supplies, or other. Use null for any field not present
+in the text. Return only the fields defined by the schema and no others.
 """.strip()
 
 
@@ -270,23 +273,16 @@ class LocalExtractionService:
     def _structure[T: BaseModel](
         self, text: str, schema_model: type[T], instructions: str
     ) -> T:
+        request = build_request(
+            model=self._settings.ollama_model,
+            system=instructions,
+            user=text,
+            schema=schema_model.model_json_schema(),
+            schema_name=schema_model.__name__,
+            prompted=self._settings.prompted_output(),
+        )
         try:
-            response = self._client.chat.completions.create(
-                model=self._settings.ollama_model,
-                messages=[
-                    {"role": "system", "content": instructions},
-                    {"role": "user", "content": text},
-                ],
-                response_format={
-                    "type": "json_schema",
-                    "json_schema": {
-                        "name": schema_model.__name__,
-                        "strict": True,
-                        "schema": schema_model.model_json_schema(),
-                    },
-                },
-                temperature=0,
-            )
+            response = self._client.chat.completions.create(**request)
         except Exception as error:
             raise LocalExtractionError(
                 f"The local model {self._settings.ollama_model!r} at "
@@ -296,7 +292,7 @@ class LocalExtractionService:
 
         content = response.choices[0].message.content or ""
         try:
-            return schema_model.model_validate(json.loads(content))
+            return schema_model.model_validate(parse_json_object(content))
         except (json.JSONDecodeError, ValidationError, TypeError) as error:
             raise LocalExtractionError(
                 "The local model did not return valid structured extraction output."

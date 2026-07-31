@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
-from pydantic_ai import Agent, NativeOutput
+from pydantic_ai import Agent, NativeOutput, PromptedOutput
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
@@ -70,20 +70,28 @@ class DocumentClassification(BaseModel):
 def build_local_agent[T](
     output_type: type[T], instructions: str, settings: Settings
 ) -> Agent[None, T]:
-    """Build a pydantic-ai agent bound to the local Ollama server.
+    """Build a pydantic-ai agent bound to the configured Ollama server.
 
-    Structured output is requested through the model's native JSON-schema support
-    rather than the default tool-calling path, because the small local models this
-    project targets serve a json_schema response format but do not support tools.
+    Tool-calling, pydantic-ai's default output path, is unavailable: the small
+    local models this project targets do not support tools. The replacement
+    depends on where the model runs. Locally served models are grammar-constrained
+    by Ollama and take NativeOutput; cloud-served models are proxied without that
+    constraint, ignore a json_schema response format, and must be asked for JSON
+    in the prompt instead.
     """
     provider = OpenAIProvider(
         base_url=settings.ollama_base_url,
         api_key=settings.ollama_api_key,
     )
     model = OpenAIChatModel(model_name=settings.ollama_model, provider=provider)
+    output = (
+        PromptedOutput(output_type)
+        if settings.prompted_output()
+        else NativeOutput(output_type)
+    )
     return Agent(
         model=model,
-        output_type=NativeOutput(output_type),
+        output_type=output,
         instructions=instructions,
         # Pinned so the same document yields the same classification and GL
         # suggestion across runs, matching the extraction call.

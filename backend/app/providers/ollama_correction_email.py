@@ -8,6 +8,7 @@ from app.correction_email.base import CorrectionEmailDrafter, CorrectionEmailDra
 from app.correction_email.schemas import CorrectionEmailDraft
 from app.documents.schemas import ReviewData, ValidationIssue
 from app.providers.ollama_client import build_ollama_client
+from app.providers.structured_output import build_request, parse_json_object
 
 INSTRUCTIONS = """
 Draft a concise, professional correction-request email from a finance administrator to the
@@ -37,23 +38,16 @@ class OllamaCorrectionEmailDrafter(CorrectionEmailDrafter):
                 "issues": [issue.model_dump(mode="json") for issue in issues],
             }
         )
+        request = build_request(
+            model=self._settings.ollama_model,
+            system=INSTRUCTIONS,
+            user=payload,
+            schema=CorrectionEmailDraft.model_json_schema(),
+            schema_name="correction_email_draft",
+            prompted=self._settings.prompted_output(),
+        )
         try:
-            response = self.client.chat.completions.create(
-                model=self._settings.ollama_model,
-                messages=[
-                    {"role": "system", "content": INSTRUCTIONS},
-                    {"role": "user", "content": payload},
-                ],
-                response_format={
-                    "type": "json_schema",
-                    "json_schema": {
-                        "name": "correction_email_draft",
-                        "strict": True,
-                        "schema": CorrectionEmailDraft.model_json_schema(),
-                    },
-                },
-                temperature=0,
-            )
+            response = self.client.chat.completions.create(**request)
         except Exception as error:
             raise CorrectionEmailDraftingError(
                 "The local model could not draft the correction email."
@@ -61,7 +55,7 @@ class OllamaCorrectionEmailDrafter(CorrectionEmailDrafter):
 
         content = response.choices[0].message.content or ""
         try:
-            return CorrectionEmailDraft.model_validate(json.loads(content))
+            return CorrectionEmailDraft.model_validate(parse_json_object(content))
         except (json.JSONDecodeError, ValidationError, TypeError) as error:
             raise CorrectionEmailDraftingError(
                 "The local model returned an invalid correction-email draft."
