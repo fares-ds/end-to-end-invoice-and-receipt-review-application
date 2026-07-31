@@ -184,8 +184,35 @@ def check_northstar_rules() -> None:
           ["duplicate_invoice"])
 
 
+def check_independent_reading_route() -> None:
+    """The review must be able to read a PDF by a different route than primary.
+
+    Re-reading the same text layer made agreement between the two paths
+    meaningless. Forcing OCR gives a second genuine reading of equal content.
+    """
+    ocr = OcrTextService(get_settings())
+    pdf = SAMPLES / "01-en-happy-classic.pdf"
+
+    primary = ocr.extract(pdf, "application/pdf")
+    independent = ocr.extract(pdf, "application/pdf", prefer_text_layer=False)
+
+    check("independence: primary uses text layer", primary.source, "pdf_text_layer")
+    check("independence: review uses OCR", independent.source, "tesseract")
+    check("independence: routes differ", primary.text != independent.text, True)
+
+    # A different route is only useful if it recovers the same facts.
+    for token in ("FR61954506077", "NL00449544B01", "EN-2026-1001", "121.00"):
+        check(f"independence: OCR route recovers {token}", token in independent.text, True)
+
+    # An image has only one route, so both paths necessarily share a source.
+    receipt = SAMPLES / "13-nl-fuel-receipt.png"
+    forced = ocr.extract(receipt, "image/png", prefer_text_layer=False)
+    check("independence: image has one route only", forced.source, "tesseract")
+
+
 CHECKS = [
     check_vat_repair,
+    check_independent_reading_route,
     check_ocr_line_structure,
     check_pdf_text_layer,
     check_confidence_scoring,

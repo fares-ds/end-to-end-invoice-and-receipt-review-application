@@ -114,7 +114,21 @@ class OcrTextService:
     def __init__(self, settings: Settings | None = None) -> None:
         self._settings = settings or get_settings()
 
-    def extract(self, path: Path, content_type: str) -> OcrDocument:
+    def extract(
+        self,
+        path: Path,
+        content_type: str,
+        *,
+        prefer_text_layer: bool = True,
+    ) -> OcrDocument:
+        """Recover the document's text.
+
+        ``prefer_text_layer=False`` forces a PDF through rasterization and OCR even
+        when it carries an exact text layer. That is deliberately the worse way to
+        read the page, and exists so the independent review can read the document
+        by a genuinely different route than the primary extraction rather than
+        re-reading identical text.
+        """
         if content_type not in SUPPORTED_CONTENT_TYPES:
             raise OcrError(
                 f"Unsupported content type {content_type!r}. "
@@ -122,7 +136,7 @@ class OcrTextService:
             )
 
         if content_type == "application/pdf":
-            layer = self._read_pdf_text_layer(path)
+            layer = self._read_pdf_text_layer(path) if prefer_text_layer else None
             if layer is not None:
                 text, page_count = layer
                 logger.info("Recovered PDF text layer (%d page(s))", page_count)

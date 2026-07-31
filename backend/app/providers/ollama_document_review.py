@@ -45,7 +45,12 @@ approved; deterministic application rules do that.
 """.strip()
 
 SHARED_SOURCE_NOTE = (
-    "Reviewed from locally recovered document text, which the primary extraction also used."
+    "Reviewed from the same recovered text the primary extraction used, so the two "
+    "readings are not independent."
+)
+INDEPENDENT_SOURCE_NOTE = (
+    "Reviewed from an independent OCR pass over the page image, not the text layer "
+    "the primary extraction read."
 )
 
 
@@ -73,9 +78,8 @@ class OllamaDocumentReviewer(DocumentReviewer):
             model = self._settings.ollama_vision_model or self._settings.ollama_model
             shared_source = False
         else:
-            message = self._text_message(path, content_type)
+            message, shared_source = self._text_message(path, content_type)
             model = self._settings.ollama_model
-            shared_source = True
 
         request = build_request(
             model=model,
@@ -102,24 +106,34 @@ class OllamaDocumentReviewer(DocumentReviewer):
                 "The local model did not return valid structured document-review output."
             ) from error
 
-        if shared_source:
-            review = review.model_copy(
-                update={"summary": f"{review.summary} ({SHARED_SOURCE_NOTE})"}
-            )
-        return review
+        note = SHARED_SOURCE_NOTE if shared_source else INDEPENDENT_SOURCE_NOTE
+        return review.model_copy(update={"summary": f"{review.summary} ({note})"})
 
-    def _text_message(self, path: Path, content_type: str) -> dict[str, str]:
+    def _text_message(self, path: Path, content_type: str) -> tuple[dict[str, str], bool]:
+        """Read the document by a different route than the primary extraction.
+
+        A PDF is rasterized and OCRed rather than read through its text layer, so
+        the review is a second genuine reading. An image has only one route, so
+        the two necessarily share a source and the review says so.
+        """
         try:
-            ocr = self._ocr.extract(path, content_type)
+            ocr = self._ocr.extract(path, content_type, prefer_text_layer=False)
+            primary_source = self._ocr.extract(path, content_type).source
         except OcrError as error:
             raise DocumentReviewError(str(error)) from error
-        return {
+
+        shared_source = ocr.source == primary_source
+        logger.info(
+            "Independent review read via %s (primary used %s)", ocr.source, primary_source
+        )
+        message = {
             "role": "user",
             "content": (
                 "Classify, independently extract, and review this financial "
                 f"document.\n\n{ocr.text}"
             ),
         }
+        return message, shared_source
 
     def _vision_message(self, path: Path, content_type: str) -> dict:
         if content_type == "application/pdf":
